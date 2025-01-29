@@ -3,22 +3,19 @@ package com.lenarsharipov.assignment.clientservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lenarsharipov.assignment.clientservice.dto.AddContactDto;
 import com.lenarsharipov.assignment.clientservice.dto.ClientReadDto;
-import com.lenarsharipov.assignment.clientservice.dto.CreateClientDto;
 import com.lenarsharipov.assignment.clientservice.dto.ContactReadDto;
+import com.lenarsharipov.assignment.clientservice.dto.CreateClientDto;
 import com.lenarsharipov.assignment.clientservice.exception.ResourceNotFoundException;
 import com.lenarsharipov.assignment.clientservice.model.ContactType;
 import com.lenarsharipov.assignment.clientservice.service.ClientService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -37,16 +34,23 @@ class ClientControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ClientService clientService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    CreateClientDto createClientDto;
+    ClientReadDto clientReadDto;
+    long clientId = 1L;
+
+    @BeforeEach
+    void setup() {
+        createClientDto = new CreateClientDto("Peter Jackson");
+        clientReadDto = new ClientReadDto(clientId, "Peter Jackson");
+    }
+
     @Test
     void shouldAddClientSuccessfully() throws Exception {
-        CreateClientDto createClientDto = new CreateClientDto("Peter Jackson");
-        ClientReadDto clientReadDto = new ClientReadDto(1L, "Peter Jackson");
-
         when(clientService.saveClient(any(CreateClientDto.class))).thenReturn(clientReadDto);
 
         mockMvc.perform(post(CLIENT_PATH)
@@ -59,21 +63,19 @@ class ClientControllerTest {
 
     @Test
     void shouldGetAllClients() throws Exception {
-        List<ClientReadDto> clients = List.of(new ClientReadDto(1L, "Peter Jackson"));
+        List<ClientReadDto> clients = List.of(clientReadDto);
 
         when(clientService.findAllClients()).thenReturn(clients);
 
         mockMvc.perform(get(CLIENT_PATH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()").value(clients.size()))
-                .andExpect(jsonPath("$[0].id").value(clients.get(0).id()))
-                .andExpect(jsonPath("$[0].name").value(clients.get(0).name()));
+                .andExpect(jsonPath("$[0].id").value(clients.getFirst().id()))
+                .andExpect(jsonPath("$[0].name").value(clients.getFirst().name()));
     }
 
     @Test
     void shouldGetClientById() throws Exception {
-        ClientReadDto clientReadDto = new ClientReadDto(1L, "Peter Jackson");
-
         when(clientService.findClientById(1L)).thenReturn(clientReadDto);
 
         mockMvc.perform(get(CLIENT_ID_PATH, clientReadDto.id()))
@@ -84,8 +86,8 @@ class ClientControllerTest {
 
     @Test
     void shouldReturn404WhenClientNotFound() throws Exception {
-        long clientId = 1L;
-        when(clientService.findClientById(clientId)).thenThrow(new ResourceNotFoundException("Client not found"));
+        when(clientService.findClientById(clientId))
+                .thenThrow(new ResourceNotFoundException("Client not found"));
 
         mockMvc.perform(get(CLIENT_ID_PATH, clientId))
                 .andExpect(status().isNotFound());
@@ -93,7 +95,6 @@ class ClientControllerTest {
 
     @Test
     void shouldDeleteClient() throws Exception {
-        long clientId = 1L;
         doNothing().when(clientService).deleteClientById(clientId);
 
         mockMvc.perform(delete(CLIENT_ID_PATH, clientId))
@@ -102,7 +103,6 @@ class ClientControllerTest {
 
     @Test
     void shouldAddClientContact() throws Exception {
-        long clientId = 1L;
         AddContactDto addContactDto = new AddContactDto(ContactType.EMAIL, "test@example.com");
 
         mockMvc.perform(post(CLIENT_ID_CONTACT_PATH, clientId)
@@ -117,7 +117,6 @@ class ClientControllerTest {
     @Test
     void shouldGetClientContactsByType() throws Exception {
         List<ContactReadDto> contacts = List.of(new ContactReadDto(ContactType.EMAIL, "test@example.com"));
-        long clientId = 1L;
         when(clientService.getClientContacts(clientId, "EMAIL")).thenReturn(contacts);
 
         mockMvc.perform(get("/api/clients/1/contacts?type=EMAIL"))
