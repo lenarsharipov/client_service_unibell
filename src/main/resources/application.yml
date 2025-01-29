@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: client-service
+
+logging:
+  level:
+    root: info
+    com.lenarsharipov.assignment.clientservice: debug
+
+springdoc:
+  override-with-generic-response: false
